@@ -1,4 +1,4 @@
-# The Aviator 2
+# The Remote Visitor
 
 Updated version of Kaim Maaloul's The Aviator, see his [Article on Codrops](http://tympanus.net/codrops/?p=26501), demo [Demo](http://tympanus.net/Tutorials/TheAviator/) and [GitHub](https://github.com/yakudoo/TheAviator).
 
@@ -14,13 +14,8 @@ This repository is the archive of the source code for the Codrops article and wi
 ## Start
 
 Clone repository, in the code directory run `php -S localhost:8123` and in your browser visit [http://localhost:8123/](http://localhost:8123/).
-
-
-## License
-
-Integrate or build upon it for free in your personal or commercial projects. Don't republish, redistribute or sell "as-is". 
-
-
+OR
+Clone repository, in the code directory run `python3 -m http.server 8080` and in your browser visit [http://localhost:8080]
 
 ## Credits
 
@@ -59,15 +54,6 @@ Follow Karim: [Twitter](https://twitter.com/yakudoo), [Codepen](http://codepen.i
 
 **07 April 2022**
  - when replaying, remove all coins and enemies
- - fix bug about the state handling after dying
- - implement all audio
- - find audio files
-      - propeller/airplane sound
-      - shooting simple, double, better
-      - background music
-      - picking up collectible
-      - collision with enemy
-      - collecting a coin
 
 **06 April 2022**
  - airplane recoil
