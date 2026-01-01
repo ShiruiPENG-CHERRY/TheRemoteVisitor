@@ -1,132 +1,1013 @@
-<!-- Copied and modified from http://games-aviator.com/ -->
-<html>
+<!DOCTYPE html>
+<html lang="en" class="no-js">
 <head>
-	<meta charset="UTF-8" />
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>The Aviator 2</title>
-	<meta name="description" content="An extension of Karim Maaloul's game The Aviator." />
-	<meta name="keywords" content="three.js, game, aviator, browser, javascript" />
-	<meta name="author" content="Michel Helms for Codrops" />
-	<link rel="icon" type="image/png" href="favicon.png"/>
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&display=swap" rel="stylesheet">
-	<link rel="stylesheet" type="text/css" href="/game.css" />
-	<script src="https://cdn.jsdelivr.net/npm/three@0.139.2/build/three.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/three@0.139.2/examples/js/loaders/OBJLoader.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/three@0.139.2/examples/js/controls/OrbitControls.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.10.2/gsap.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finding You - The Journey</title>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r83/three.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js"></script>
+<!-- 引入更适合中文阅读的字体 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&family=ZCOOL+XiaoWei&family=Dela+Gothic+One&display=swap" rel="stylesheet">
+
+<style>
+*, *::after, *::before { box-sizing: border-box; }
+
+:root {
+    --font-title: 'Dela Gothic One', cursive;
+    --font-serif: 'Noto Serif SC', serif; /* 正文衬线体 */
+    --font-art: 'ZCOOL XiaoWei', serif;    /* 艺术字体 */
+    --color-text: #fff;
+    --color-ui: #eb5b4a;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--font-serif);
+    /* 初始背景：云层之上（明亮） */
+    background: linear-gradient(#e4e0ba, #f7d9aa);
+    user-select: none;
+    transition: background 3s ease; /* 背景平滑过渡 */
+}
+
+/* --- UI 容器 --- */
+#game-ui {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+}
+
+/* 顶部信息栏 */
+.header-bar {
+    position: absolute; top: 20px; width: 100%;
+    display: flex; justify-content: space-between; padding: 0 30px;
+    z-index: 10;
+}
+
+.dist-display {
+    font-family: var(--font-title); font-size: 1.2rem; color: #eb5b4a;
+    text-shadow: 2px 2px 0 rgba(255,255,255,0.5);
+}
+
+.collection-badge {
+    background: rgba(255,255,255,0.8); padding: 5px 15px; border-radius: 20px;
+    border: 2px solid #eb5b4a; color: #eb5b4a; font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); pointer-events: auto;
+}
+
+.lifes { display: flex; gap: 5px; }
+.life-icon {
+    width: 25px; height: 25px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23eb5b4a'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+    background-size: contain; background-repeat: no-repeat;
+    transition: filter 0.3s;
+}
+.life-icon.lost { filter: grayscale(100%) opacity(0.3); }
+
+/* --- 浮动叙事字幕 --- */
+#narrative-container {
+    position: absolute; top: 35%; width: 100%; text-align: center;
+    pointer-events: none; z-index: 5;
+}
+.narrative-text {
+    font-family: var(--font-art); font-size: 2rem; color: #fff;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    opacity: 0; transform: translateY(20px);
+    transition: all 1s ease;
+    padding: 0 20px; line-height: 1.5;
+}
+.narrative-text.show { opacity: 1; transform: translateY(0); }
+
+/* --- 收集品反馈文字 --- */
+.pickup-msg {
+    position: absolute; color: #fff; font-weight: bold; font-size: 1rem;
+    pointer-events: none; animation: floatUp 1.5s forwards;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+@keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-50px); }
+}
+
+/* --- 屏幕通用样式 --- */
+#start-screen, #win-screen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,250,240,0.96);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 100; pointer-events: auto; transition: opacity 0.8s;
+}
+#start-screen.hidden { opacity: 0; pointer-events: none; }
+
+/* 胜利界面特别样式 */
+#win-screen {
+    background: rgba(20, 25, 50, 0.95); color: #fff;
+    justify-content: flex-start; padding-top: 60px; overflow-y: auto;
+    display: none;
+}
+#win-screen.visible { display: flex; animation: fadeIn 1s; }
+
+.main-title {
+    font-family: var(--font-art); font-size: 2.5rem; color: #eb5b4a; margin-bottom: 20px; text-align: center;
+}
+.sub-title {
+    font-family: var(--font-serif); font-size: 1.1rem; color: #666; margin-bottom: 40px; text-align: center; max-width: 80%; line-height: 1.6;
+}
+
+.btn {
+    padding: 12px 40px; font-family: var(--font-title); font-size: 18px;
+    color: white; background: #eb5b4a; border: none; border-radius: 50px;
+    cursor: pointer; box-shadow: 0 4px 10px rgba(235,91,74,0.3);
+    transition: transform 0.2s; z-index: 101; letter-spacing: 1px;
+}
+.btn:hover { transform: scale(1.05); background: #d44a3a; }
+
+/* 相册 */
+.album-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 15px; width: 90%; max-width: 800px; margin-bottom: 40px;
+}
+.memory-card {
+    background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px;
+    text-align: center; border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s;
+}
+.memory-card.collected { background: #fff; color: #333; transform: scale(1.02); }
+.memory-icon { font-size: 24px; filter: grayscale(100%); opacity: 0.5; margin-bottom: 5px; }
+.memory-card.collected .memory-icon { filter: grayscale(0); opacity: 1; }
+.memory-name { font-size: 0.9rem; font-weight: bold; }
+.memory-desc { font-size: 0.75rem; color: #888; }
+
+/* 惊喜盒子 */
+#surprise-box {
+    font-size: 50px; cursor: pointer; animation: bounce 2s infinite; margin: 20px 0;
+    filter: drop-shadow(0 0 15px rgba(255,215,0,0.5)); display: none;
+}
+.surprise-tip { font-size: 14px; color: #f1d796; margin-top: 5px; opacity: 0.8; }
+
+/* 信件弹窗 */
+#letter-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); z-index: 200;
+    display: none; justify-content: center; align-items: center;
+}
+#letter-paper {
+    background: #fffcf5; width: 85%; max-width: 550px; height: 75vh;
+    padding: 40px; border-radius: 4px; position: relative; overflow-y: auto;
+    background-image: linear-gradient(#e0e0e0 1px, transparent 1px);
+    background-size: 100% 25px; line-height: 25px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+}
+.letter-text {
+    font-family: 'ZCOOL XiaoWei', serif; font-size: 1.2rem; color: #444;
+    white-space: pre-wrap; text-align: left;
+}
+.close-letter { position: absolute; top: 10px; right: 20px; font-size: 30px; cursor: pointer; color: #999; }
+
+#replayMessage {
+    position: absolute; bottom: 20%; width: 100%; text-align: center;
+    font-family: var(--font-title); font-size: 1.5rem; color: #eb5b4a;
+    display: none; text-shadow: 2px 2px 0 #fff;
+}
+
+@keyframes bounce { 0%, 100% {transform: translateY(0);} 50% {transform: translateY(-10px);} }
+@keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+</style>
 </head>
 <body>
-	<div class="game-holder" id="gameHolder">
-		<div class="header">
-			<div class="header__title-wrap">
-				<h1 class="header__title">
-					<span class="header__title-pre">The</span> 
-					<span class="header__title-main">Aviator 2</span>
-				</h1>
-				<h2 class="header__tagline">An extension of Karim Maaloul's <a href="http://tympanus.net/codrops/?p=26501" class="hover-line">The Aviator</a></h2>
-			</div>
-			<div class="score" id="score">
-				<div class="score__content" id="level">
-					<div class="score__label">level</div>
-					<div class="score__value score__value--level" id="levelValue">1</div>
-					<svg class="level-circle" id="levelCircle" viewbox="0 0 200 200">
-						<circle id="levelCircleBgr" r="80" cx="100" cy="100" fill="none" stroke="#d1b790" stroke-width="24px" />
-						<circle id="levelCircleStroke" r="80" cx="100" cy="100" fill="none" #f25346 stroke="#68c3c0" stroke-width="14px" stroke-dasharray="502" />
-					</svg>
-				</div>
-				<div class="score__content score__content--fixed" id="dist">
-					<div class="score__label">distance</div>
-					<div class="score__value score__value--dist" id="distValue">0</div>
-				</div>
-				<div class="score__content score__content--fixed" id="coins">
-					<div class="score__label">coins</div>
-					<div class="score__value score__value--dist" id="coinsValue">0</div>
-				</div>
-				<div class="score__content" id="lifes">
-					<div class="score__label">life</div>
-					<img class="heart" src="heart.png"/>
-					<img class="heart" src="heart.png"/>
-					<img class="heart" src="heart.png"/>
-				</div>
-			</div>
-		</div>
 
-		<nav class="links">
-			<a href="http://tympanus.net/Development/TextRepetitionEffect/" class="hover-line">Previous demo</a>
-			<a href="https://tympanus.net/codrops/?p=63296" class="hover-line">Article</a>
-			<a href="https://github.com/Badestrand/TheAviator2" class="hover-line">GitHub</a>
-		</nav>
+<div id="game-ui">
+    <div class="header-bar">
+        <div class="collection-badge">🎁 <span id="collectionText">0/10</span></div>
+        <div class="dist-display"><span id="distValue">0</span> km</div>
+        <div class="lifes">
+            <div class="life-icon" id="life1"></div>
+            <div class="life-icon" id="life2"></div>
+            <div class="life-icon" id="life3"></div>
+        </div>
+    </div>
+    
+    <!-- 叙事字幕容器 -->
+    <div id="narrative-container">
+        <div class="narrative-text" id="narrativeText"></div>
+    </div>
 
-		<div class="world" id="world">
-			<canvas id="threejs-canvas"></canvas>
-		</div>
+    <div id="replayMessage">Crashed! Click to Retry</div>
+</div>
 
-		<div class="message--replay" id="replayMessage">
-			Click to Replay
-		</div>
+<!-- 开场界面 -->
+<div id="start-screen">
+    <div class="main-title" style="margin-bottom: 10px;">Finding You</div>
+    <div class="sub-title" style="font-size: 1.2rem; font-style: italic;">
+        “从某一天开始，我就想把这个世界飞一遍，<br>只为了找到你。”
+    </div>
+    <div style="font-size: 0.9rem; color: #999; margin-top: 20px;">( 建议开启声音体验 🔊 )</div>
+    <button class="btn" id="startBtn">起飞</button>
+</div>
 
-		<div id="error">
-			<p><b>Error</b></p>
-			<p id="error-message"></p>
-		</div>
+<!-- 胜利/结算界面 -->
+<div id="win-screen">
+    <div class="main-title" style="color: #f1d796; margin-top: 20px;">找到你啦！</div>
+    <div class="sub-title" style="color: #ddd;">
+        谢谢你出现在我的世界。生日快乐 ❤
+    </div>
+    
+    <div class="album-grid" id="albumGrid"></div>
 
-		<div id="new-level">
-			<p>Level</p>
-			<p>1</p>
-		</div>
+    <div id="surprise-container" style="text-align: center;">
+        <div id="surprise-box">💌</div>
+        <div class="surprise-tip" id="boxTip">Collect all memories to open</div>
+    </div>
+</div>
 
-		<div id="intro-screen" class="visible">
-			<button type="button">Start</button>
-		</div>
+<!-- 信件 -->
+<div id="letter-modal">
+    <div id="letter-paper">
+        <div class="close-letter" onclick="closeLetter()">×</div>
+        <div class="letter-text">
+亲爱的凯天：
 
-		<div id="score-screen">
-			<div>
-				<p class="headline">Map complete</p>
-				<div class="lines">
-					<div>
-						<span>Coins</span>
-						<span><span id="score-coins-collected">129</span> / <span id="score-coins-total">136</span></span>
-					</div>
-					<div>
-						<span>Enemies killed</span>
-						<span><span id="score-enemies-killed">3</span> / <span id="score-enemies-total">20</span></span>
-					</div>
-					<div>
-						<span>Shots fired</span>
-						<span><span id="score-shots-fired">9820</span></span>
-					</div>
-					<div>
-						<span>Damage taken</span>
-						<span><span id="score-lifes-lost">1</span></span>
-					</div>
-				</div>
-			</div>
-			<br/>
-			Thanks for playing!
-		</div>
-	</div>
+见字如面。
 
+当你看到这封信的时候，我已经跨越了 9301 公里，穿过云层、城市和森林，终于来到了你的身边。
 
-	<div id="attribution" style="display: none">
-		<p>
-			Sound effects obtained from https://www.zapsplat.com and https://freesound.org/.<br/>
-			<br/>
-			This game uses these following sounds from freesound:<br/>
-			&nbsp;&nbsp;Sound "Crash" by user "Previsionary" (https://freesound.org/people/Previsionary/sounds/593677) licensed under Creative Commons 0<br/>
-			&nbsp;&nbsp;Sound "Bubble Pop" by user "elmasmalo1" (https://freesound.org/people/elmasmalo1/sounds/376968) licensed under Attribution 3.0<br/>
-			&nbsp;&nbsp;Sound "Bullet_Impact_2" by user "toxicwafflezz" (https://freesound.org/people/toxicwafflezz/sounds/150838) licensed under Attribution 3.0<br/>
-			&nbsp;&nbsp;Sound "Pacific Ocean" by user "tim.kahn" (https://freesound.org/people/tim.kahn/sounds/174763) licensed under Attribution 3.0<br/>
-			&nbsp;&nbsp;Sound "Airship propeller engine" by user "ilm0player" (https://freesound.org/people/ilm0player/sounds/578181/) licensed under Creative Commons 0<br/>
-			&nbsp;&nbsp;Sound "Rock Smash" by user "NeoSpica" (https://freesound.org/people/NeoSpica/sounds/512243) licensed under Creative Commons 0<br/>
-			&nbsp;&nbsp;Sound "Gun shot/bullet hit" by user "coolguy244e" (https://freesound.org/people/coolguy244e/sounds/266916) licensed under Creative Commons 0<br/>
-			&nbsp;&nbsp;Sound "Pistol Shot" by user "LeMudCrab" (https://freesound.org/people/LeMudCrab/sounds/163456/) licensed under Creative Commons 0<br/>
-			&nbsp;&nbsp;Sound "Water Splash" by user "Yin_Yang_Jake007" (https://freesound.org/people/Yin_Yang_Jake007/sounds/406087/) licensed under Attribution 3.0<br/>
-			&nbsp;&nbsp;Sound "Coins - 01" by user "DWOBoyle" (https://freesound.org/people/DWOBoyle/sounds/140382/) licensed under Attribution 3.0<br/>
-		</p>
-	</div>
-	<script type="text/javascript" src="/game.js"></script>
+虽然这只是一个小游戏，但每一公里都代表着我想见你的心情。
+
+生日快乐！
+未来的路，我们还要一起走下去。
+
+顺颂时祺，
+彭诗睿
+        </div>
+    </div>
+</div>
+
+<div id="world"></div>
+
+<script>
+// --- 1. 叙事与关卡配置 ---
+const LEVEL_CONFIG = [
+    {   // 0 - 2500km: 云层之上
+        threshold: 0,
+        bgColor: ["#e4e0ba", "#f7d9aa"], // 明亮
+        fogColor: 0xf7d9aa,
+        text: "“有些遇见，就像在云上飞行。<br>你不知道风会把你带向哪里，<br>但遇到你的那一刻，我知道方向有了。”",
+        collectText: "拾起一段心动 (+1)"
+    },
+    {   // 2500 - 5000km: 城市灯光 (黄昏/夜晚)
+        threshold: 2500,
+        bgColor: ["#2C3E50", "#4CA1AF"], // 深蓝渐变
+        fogColor: 0x4CA1AF,
+        text: "“在这个城市里，我们一起赶路、一起熬夜、<br>一起笑着说未来会更厉害。<br>那段日子，我很喜欢。”",
+        collectText: "拾起一次陪伴 (+1)"
+    },
+    {   // 5000 - 7500km: 神秘森林 (幽暗)
+        threshold: 5000,
+        bgColor: ["#0f2027", "#203a43"], // 深绿黑
+        fogColor: 0x203a43,
+        text: "“后来我们走散了。<br>有些话没说出口，有些路没一起走完。<br>但我一直记得你。”",
+        collectText: "拾起一次勇气 (+1)"
+    },
+     {   // 7500km+: 晨曦 (希望)
+        threshold: 7500,
+        bgColor: ["#f7c8a7", "#f2a68a"], // 晨曦红
+        fogColor: 0xf2b49a,
+        text: "“我想继续往前走，<br>不是去追一段旧时光，<br>而是因为未来的风里，好像有一个属于我们的方向。”",
+        collectText: "拾起一次回忆 (+1)"
+    }
+];
+
+// 结局文案
+const ENDING_TEXT = "“原来你一直在这里。”";
+
+// 收集品定义
+const MEMORIES = [
+    { id: 1, title: "遇见你的那天", desc: "命运悄悄落在那张桌子上", icon: "☕", color: 0xff9999 },
+    { id: 2, title: "并肩而坐", desc: "银幕亮起时悄悄牵你的手", icon: "🎬", color: 0x99ccff },
+    { id: 3, title: "你的字迹", desc: "猜我看了几遍", icon: "💌", color: 0xffff99 },
+    { id: 4, title: "远路", desc: "一路看风，一路靠近你", icon: "✈️", color: 0x99ff99 },
+    { id: 5, title: "生日", desc: "我悄悄许了一个关于你的愿望", icon: "🕯", color: 0xffccff },
+    { id: 6, title: "拥抱里的世界", desc: "你突然伸手的那一刻，我觉得时间都放慢了。", icon: "🤗", color: 0xffaa80 },
+    { id: 7, title: "凌晨三点", desc: "不想结束的夜", icon: "🌙", color: 0xccccff },
+    { id: 8, title: "牵手的理由", desc: "掌心温度热得刚刚好", icon: "🎁", color: 0xff6666 },
+    { id: 9, title: "接吻", desc: "喜欢(❤ ω ❤)", icon: "🥰", color: 0x66cccc },
+    { id: 10, title: "在某一刻之后", desc: "我其实分不清喜欢从哪一刻开始的", icon: "✨", color: 0xffffff }
+];
+
+// 颜色定义
+var Colors = {
+    red:0xf25346, white:0xd8d0d1, brown:0x59332e, pink:0xF5986E, brownDark:0x23190f, blue:0x68c3c0, skin:0xffdbac, hair:0x331a00, bfShirt:0x5588ff
+};
+
+// --- 音频管理 (容错版) ---
+const AudioMgr = {
+    sounds: {},
+    init: function() {
+        this.safeLoad('bg', 'audio/ocean.mp3', true, 0.3);
+        this.safeLoad('propeller', 'audio/propeller.mp3', true, 0.1);
+        this.safeLoad('coin', 'audio/coin.mp3', false, 0.6);
+        this.safeLoad('crash', 'audio/rock-shatter-1.mp3', false, 0.8);
+        this.safeLoad('splash', 'audio/water-splash.mp3', false, 0.8);
+        this.safeLoad('win', 'audio/coin-3.mp3', false, 0.8);
+    },
+    safeLoad: function(name, path, loop, vol) {
+        try {
+            var a = new Audio(path); a.loop = loop; a.volume = vol;
+            this.sounds[name] = a;
+        } catch(e) {}
+    },
+    play: function(name) {
+        try {
+            if(this.sounds[name]) {
+                if(!this.sounds[name].loop) this.sounds[name].currentTime = 0;
+                this.sounds[name].play().catch(function(){});
+            }
+        } catch(e){}
+    },
+    startMusic: function() { this.play('bg'); this.play('propeller'); },
+    stopMusic: function() { 
+        if(this.sounds['bg']) this.sounds['bg'].pause();
+        if(this.sounds['propeller']) this.sounds['propeller'].pause();
+    }
+};
+
+// --- 游戏变量 ---
+var scene, camera, renderer, container;
+var hemisphereLight, shadowLight, ambientLight;
+var sea, sky, airplane, boyfriend;
+var memoriesHolder, enemiesHolder, particlesHolder;
+var mousePos = { x: 0, y: 0 };
+var collectedIds = [];
+var gameStatus = "intro";
+var currentLevelIndex = -1;
+
+var game = {
+    speed: 0,
+    initSpeed: .00035,
+    baseSpeed: .00035,
+    targetBaseSpeed: .00035,
+    incrementSpeedByTime: .0000005,
+    distance: 0,
+    targetDistance: 9301,
+    ratioSpeedDistance: 50,
+    lifes: 3,
+    
+    planeDefaultHeight: 100,
+    planeAmpHeight: 80,
+    planeAmpWidth: 75,
+    planeMoveSensivity: 0.005,
+    planeRotXSensivity: 0.0008,
+    planeRotZSensivity: 0.0004,
+    seaRadius: 600,
+    seaLength: 800,
+    
+    coinDistanceTolerance: 15,
+    coinsSpeed: .5,
+    distanceForCoinsSpawn: 80,
+    
+    enemyDistanceTolerance: 10,
+    enemiesSpeed: .6,
+    distanceForEnemiesSpawn: 50,
+    
+    coinLastSpawn: 0,
+    enemyLastSpawn: 0
+};
+
+var deltaTime = 0;
+var newTime = new Date().getTime();
+var oldTime = new Date().getTime();
+
+// --- 核心类定义 ---
+var Pilot = function(){
+    this.mesh = new THREE.Object3D();
+    this.angleHairs=0;
+    var bodyGeom = new THREE.BoxGeometry(15,15,15);
+    var bodyMat = new THREE.MeshPhongMaterial({color:Colors.pink, shading:THREE.FlatShading});
+    var body = new THREE.Mesh(bodyGeom, bodyMat);
+    body.position.set(2,-12,0);
+    this.mesh.add(body);
+    var faceGeom = new THREE.BoxGeometry(10,10,10);
+    var faceMat = new THREE.MeshLambertMaterial({color:Colors.skin});
+    var face = new THREE.Mesh(faceGeom, faceMat);
+    this.mesh.add(face);
+    var hairGeom = new THREE.BoxGeometry(4,4,4);
+    var hairMat = new THREE.MeshLambertMaterial({color:Colors.hair});
+    var hair = new THREE.Mesh(hairGeom, hairMat);
+    hair.geometry.applyMatrix(new THREE.Matrix4().makeTranslation(0,2,0));
+    var hairs = new THREE.Object3D();
+    this.hairsTop = new THREE.Object3D();
+    for (var i=0; i<12; i++){
+        var h = hair.clone();
+        var col = i%3; var row = Math.floor(i/3);
+        h.position.set(-4 + row*4, 0, -4 + col*4);
+        this.hairsTop.add(h);
+    }
+    hairs.add(this.hairsTop);
+    var hairSideGeom = new THREE.BoxGeometry(12,12,2);
+    hairSideGeom.applyMatrix(new THREE.Matrix4().makeTranslation(-6,0,0));
+    var hairSideR = new THREE.Mesh(hairSideGeom, hairMat);
+    var hairSideL = hairSideR.clone();
+    hairSideR.position.set(8,-4,6);
+    hairSideL.position.set(8,-4,-6);
+    hairs.add(hairSideR);
+    hairs.add(hairSideL);
+    var hairBackGeom = new THREE.BoxGeometry(2,14,10);
+    var hairBack = new THREE.Mesh(hairBackGeom, hairMat);
+    hairBack.position.set(-1,-6,0);
+    hairs.add(hairBack);
+    hairs.position.set(-5,5,0);
+    this.mesh.add(hairs);
+}
+Pilot.prototype.updateHairs = function(){
+    var hairs = this.hairsTop.children;
+    for (var i=0; i<hairs.length; i++){
+        hairs[i].scale.y = .75 + Math.cos(this.angleHairs+i/3)*.25;
+    }
+    this.angleHairs += 0.16;
+}
+
+var AirPlane = function(){
+    this.mesh = new THREE.Object3D();
+    var geomCabin = new THREE.BoxGeometry(80,50,50,1,1,1);
+    var matCabin = new THREE.MeshPhongMaterial({color:Colors.red, shading:THREE.FlatShading});
+    geomCabin.vertices[4].y-=10; geomCabin.vertices[4].z+=20;
+    geomCabin.vertices[5].y-=10; geomCabin.vertices[5].z-=20;
+    geomCabin.vertices[6].y+=30; geomCabin.vertices[6].z+=20;
+    geomCabin.vertices[7].y+=30; geomCabin.vertices[7].z-=20;
+    var cabin = new THREE.Mesh(geomCabin, matCabin);
+    cabin.castShadow = true; cabin.receiveShadow = true;
+    this.mesh.add(cabin);
+    var geomEngine = new THREE.BoxGeometry(20,50,50,1,1,1);
+    var matEngine = new THREE.MeshPhongMaterial({color:Colors.white, shading:THREE.FlatShading});
+    var engine = new THREE.Mesh(geomEngine, matEngine);
+    engine.position.x = 50; engine.castShadow = true; engine.receiveShadow = true;
+    this.mesh.add(engine);
+    var geomTailPlane = new THREE.BoxGeometry(15,20,5,1,1,1);
+    var matTailPlane = new THREE.MeshPhongMaterial({color:Colors.red, shading:THREE.FlatShading});
+    var tailPlane = new THREE.Mesh(geomTailPlane, matTailPlane);
+    tailPlane.position.set(-40,20,0); tailPlane.castShadow = true; tailPlane.receiveShadow = true;
+    this.mesh.add(tailPlane);
+    var geomSideWing = new THREE.BoxGeometry(30,5,120,1,1,1);
+    var matSideWing = new THREE.MeshPhongMaterial({color:Colors.red, shading:THREE.FlatShading});
+    var sideWing = new THREE.Mesh(geomSideWing, matSideWing);
+    sideWing.position.set(0,15,0); sideWing.castShadow = true; sideWing.receiveShadow = true;
+    this.mesh.add(sideWing);
+    var geomPropeller = new THREE.BoxGeometry(20,10,10,1,1,1);
+    var matPropeller = new THREE.MeshPhongMaterial({color:Colors.brown, shading:THREE.FlatShading});
+    this.propeller = new THREE.Mesh(geomPropeller, matPropeller);
+    this.propeller.castShadow = true; this.propeller.receiveShadow = true;
+    var geomBlade = new THREE.BoxGeometry(1,80,10,1,1,1);
+    var matBlade = new THREE.MeshPhongMaterial({color:Colors.brownDark, shading:THREE.FlatShading});
+    var blade1 = new THREE.Mesh(geomBlade, matBlade);
+    blade1.position.set(8,0,0); blade1.castShadow = true; blade1.receiveShadow = true;
+    var blade2 = blade1.clone();
+    blade2.rotation.x = Math.PI/2; blade2.castShadow = true; blade2.receiveShadow = true;
+    this.propeller.add(blade1);
+    this.propeller.add(blade2);
+    this.propeller.position.set(60,0,0);
+    this.mesh.add(this.propeller);
+    this.pilot = new Pilot();
+    this.pilot.mesh.position.set(-10,27,0);
+    this.mesh.add(this.pilot.mesh);
+    this.mesh.castShadow = true; this.mesh.receiveShadow = true;
+};
+
+var Boyfriend = function() {
+    this.mesh = new THREE.Object3D();
+    var bodyGeom = new THREE.BoxGeometry(15,15,15);
+    var bodyMat = new THREE.MeshPhongMaterial({color:Colors.bfShirt, shading:THREE.FlatShading});
+    var body = new THREE.Mesh(bodyGeom, bodyMat);
+    body.position.set(0,-12,0);
+    this.mesh.add(body);
+    var faceGeom = new THREE.BoxGeometry(10,10,10);
+    var faceMat = new THREE.MeshLambertMaterial({color:Colors.skin});
+    var face = new THREE.Mesh(faceGeom, faceMat);
+    this.mesh.add(face);
+    var hairGeom = new THREE.BoxGeometry(12,4,12);
+    var hairMat = new THREE.MeshLambertMaterial({color:Colors.brownDark});
+    var hair = new THREE.Mesh(hairGeom, hairMat);
+    hair.position.set(0,6,0);
+    this.mesh.add(hair);
+}
+
+var Cloud = function(){
+    this.mesh = new THREE.Object3D();
+    var geom = new THREE.BoxGeometry(20,20,20);
+    var mat = new THREE.MeshPhongMaterial({color:Colors.white});
+    var nBlocs = 3+Math.floor(Math.random()*3);
+    for (var i=0; i<nBlocs; i++ ){
+        var m = new THREE.Mesh(geom.clone(), mat);
+        m.position.x = i*15; m.position.y = Math.random()*10; m.position.z = Math.random()*10;
+        m.rotation.z = Math.random()*Math.PI*2; m.rotation.y = Math.random()*Math.PI*2;
+        var s = .1 + Math.random()*.9; m.scale.set(s,s,s);
+        m.castShadow = true; m.receiveShadow = true;
+        this.mesh.add(m);
+    }
+}
+
+var Sky = function(){
+    this.mesh = new THREE.Object3D();
+    this.nClouds = 20;
+    this.clouds = [];
+    var stepAngle = Math.PI*2 / this.nClouds;
+    for(var i=0; i<this.nClouds; i++){
+        var c = new Cloud();
+        this.clouds.push(c);
+        var a = stepAngle*i;
+        var h = game.seaRadius + 150 + Math.random()*200;
+        c.mesh.position.y = Math.sin(a)*h; c.mesh.position.x = Math.cos(a)*h; c.mesh.position.z = -300-Math.random()*500;
+        c.mesh.rotation.z = a + Math.PI/2;
+        var s = 1+Math.random()*2; c.mesh.scale.set(s,s,s);
+        this.mesh.add(c.mesh);
+    }
+}
+Sky.prototype.moveClouds = function(){
+    this.mesh.rotation.z += game.speed*deltaTime;
+}
+
+var Sea = function(){
+    var geom = new THREE.CylinderGeometry(game.seaRadius,game.seaRadius,game.seaLength,40,10);
+    geom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+    geom.mergeVertices();
+    var l = geom.vertices.length;
+    this.waves = [];
+    for (var i=0;i<l;i++){
+        var v = geom.vertices[i];
+        this.waves.push({y:v.y, x:v.x, z:v.z, ang:Math.random()*Math.PI*2, amp:5 + Math.random()*15, speed:0.016 + Math.random()*0.032});
+    }
+    var mat = new THREE.MeshPhongMaterial({color:Colors.blue, transparent:true, opacity:.8, shading:THREE.FlatShading});
+    this.mesh = new THREE.Mesh(geom, mat);
+    this.mesh.receiveShadow = true;
+}
+Sea.prototype.moveWaves = function (){
+    var verts = this.mesh.geometry.vertices;
+    var l = verts.length;
+    for (var i=0; i<l; i++){
+        var v = verts[i]; var vprops = this.waves[i];
+        v.x = vprops.x + Math.cos(vprops.ang)*vprops.amp;
+        v.y = vprops.y + Math.sin(vprops.ang)*vprops.amp;
+        vprops.ang += vprops.speed*deltaTime;
+    }
+    this.mesh.geometry.verticesNeedUpdate=true;
+    this.mesh.rotation.z += .005;
+}
+
+var Ennemy = function(){
+    var geom = new THREE.TetrahedronGeometry(8,2);
+    var mat = new THREE.MeshPhongMaterial({color:Colors.red, shininess:0, specular:0xffffff, shading:THREE.FlatShading});
+    this.mesh = new THREE.Mesh(geom,mat);
+    this.mesh.castShadow = true;
+    this.angle = 0; this.dist = 0;
+}
+
+var EnnemiesHolder = function (){
+    this.mesh = new THREE.Object3D();
+    this.ennemiesInUse = [];
+}
+EnnemiesHolder.prototype.spawn = function(){
+    var nEnnemies = 1;
+    // 简单难度曲线：行程过半，障碍变多
+    if(game.distance > game.targetDistance * 0.5) nEnnemies = 2;
+
+    for (var i=0; i<nEnnemies; i++){
+        var ennemy = new Ennemy();
+        ennemy.angle = - (i*0.1) - Math.random()*0.05;
+        ennemy.distance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight-20);
+        ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
+        ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
+        this.mesh.add(ennemy.mesh);
+        this.ennemiesInUse.push(ennemy);
+    }
+}
+EnnemiesHolder.prototype.rotate = function(){
+    for (var i=0; i<this.ennemiesInUse.length; i++){
+        var ennemy = this.ennemiesInUse[i];
+        ennemy.angle += game.speed*deltaTime*game.enemiesSpeed;
+        if (ennemy.angle > Math.PI*2) ennemy.angle -= Math.PI*2;
+        ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
+        ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
+        ennemy.mesh.rotation.z += Math.random()*.1; ennemy.mesh.rotation.y += Math.random()*.1;
+        var diffPos = airplane.mesh.position.clone().sub(ennemy.mesh.position.clone());
+        var d = diffPos.length();
+        if (d<game.enemyDistanceTolerance){
+            particlesHolder.spawn(ennemy.mesh.position.clone(), 15, Colors.red, 3);
+            this.mesh.remove(ennemy.mesh);
+            this.ennemiesInUse.splice(i,1);
+            AudioMgr.play('crash');
+            game.lifes--;
+            updateLifesUI();
+            if(game.lifes<=0) {
+                gameStatus = "gameover";
+                AudioMgr.play('splash');
+                document.getElementById("replayMessage").style.display="block";
+            }
+            i--;
+        } else if (ennemy.angle > Math.PI){
+            this.mesh.remove(ennemy.mesh);
+            this.ennemiesInUse.splice(i,1);
+            i--;
+        }
+    }
+}
+
+var Memory = function(data) {
+    var geom = new THREE.TetrahedronGeometry(6,0);
+    var mat = new THREE.MeshPhongMaterial({ color: data.color, shading:THREE.FlatShading });
+    this.mesh = new THREE.Mesh(geom, mat);
+    this.mesh.castShadow = true;
+    this.angle=0; this.dist=0; this.data=data;
+}
+
+var MemoriesHolder = function() {
+    this.mesh = new THREE.Object3D(); this.memoriesInPlay=[];
+}
+MemoriesHolder.prototype.spawn = function(){
+    var available = MEMORIES.filter(m => !collectedIds.includes(m.id));
+    if(available.length === 0) return;
+    var data = available[Math.floor(Math.random()*available.length)];
+    var m = new Memory(data);
+    m.distance = game.seaRadius + game.planeDefaultHeight + (-1+Math.random()*2)*(game.planeAmpHeight-20);
+    m.angle = -(0.02);
+    m.mesh.position.set(Math.cos(m.angle)*m.distance, -game.seaRadius+Math.sin(m.angle)*m.distance, 0);
+    this.mesh.add(m.mesh); this.memoriesInPlay.push(m);
+}
+MemoriesHolder.prototype.rotate = function(){
+    for(var i=0; i<this.memoriesInPlay.length; i++){
+        var m = this.memoriesInPlay[i];
+        m.angle += game.speed*deltaTime*game.coinsSpeed;
+        if(m.angle > Math.PI*2) m.angle -= Math.PI*2;
+        m.mesh.position.set(Math.cos(m.angle)*m.distance, -game.seaRadius+Math.sin(m.angle)*m.distance, 0);
+        m.mesh.rotation.z += Math.random()*.1; m.mesh.rotation.y += Math.random()*.1;
+        var diff = airplane.mesh.position.clone().sub(m.mesh.position.clone());
+        if(diff.length() < game.coinDistanceTolerance){
+            this.memoriesInPlay.splice(i,1); this.mesh.remove(m.mesh);
+            if(!collectedIds.includes(m.data.id)){
+                collectedIds.push(m.data.id);
+                AudioMgr.play('coin');
+                particlesHolder.spawn(m.mesh.position.clone(), 5, m.data.color, .8);
+                updateCollectionUI();
+                showPickupMessage(getCurrentLevelConfig().collectText);
+            }
+            i--;
+        } else if(m.angle > Math.PI){
+            this.memoriesInPlay.splice(i,1); this.mesh.remove(m.mesh); i--;
+        }
+    }
+}
+
+var Particle = function(){
+    var geom = new THREE.TetrahedronGeometry(3,0);
+    var mat = new THREE.MeshPhongMaterial({color:0x009999, shading:THREE.FlatShading});
+    this.mesh = new THREE.Mesh(geom,mat);
+}
+Particle.prototype.explode = function(pos, color, scale){
+    var _this = this; var _p = this.mesh.parent;
+    this.mesh.material.color = new THREE.Color(color);
+    this.mesh.material.needsUpdate = true;
+    this.mesh.scale.set(scale, scale, scale);
+    var targetX = pos.x + (-1 + Math.random()*2)*50;
+    var targetY = pos.y + (-1 + Math.random()*2)*50;
+    var speed = .6+Math.random()*.2;
+    TweenMax.to(this.mesh.rotation, speed, {x:Math.random()*12, y:Math.random()*12});
+    TweenMax.to(this.mesh.scale, speed, {x:.1, y:.1, z:.1});
+    TweenMax.to(this.mesh.position, speed, {x:targetX, y:targetY, delay:Math.random() *.1, ease:Power2.easeOut, onComplete:function(){
+        if(_p) _p.remove(_this.mesh);
+    }});
+}
+var ParticlesHolder = function (){
+    this.mesh = new THREE.Object3D();
+}
+ParticlesHolder.prototype.spawn = function(pos, density, color, scale){
+    for (var i=0; i<density; i++){
+        var p = new Particle();
+        this.mesh.add(p.mesh); p.mesh.visible = true; p.mesh.position.copy(pos);
+        p.explode(pos,color, scale);
+    }
+}
+
+// 5. 初始化与场景构建
+function init() {
+    createScene();
+    createLights();
+    createPlane();
+    createSea();
+    createSky();
+    
+    memoriesHolder = new MemoriesHolder(); scene.add(memoriesHolder.mesh);
+    enemiesHolder = new EnnemiesHolder(); scene.add(enemiesHolder.mesh);
+    particlesHolder = new ParticlesHolder(); scene.add(particlesHolder.mesh);
+
+    AudioMgr.init();
+
+    document.addEventListener('mousemove', handleMouseMove, false);
+    document.addEventListener('touchmove', handleTouchMove, false);
+    document.addEventListener('mouseup', handleMouseUp, false);
+    document.addEventListener('touchend', handleTouchEnd, false);
+    
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('surprise-box').addEventListener('click', openLetter);
+
+    loop();
+}
+
+function createScene() {
+    var height = window.innerHeight;
+    var width = window.innerWidth;
+    scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xf7d9aa, 100, 950);
+    aspectRatio = width / height;
+    fieldOfView = 60;
+    nearPlane = .1;
+    farPlane = 10000;
+    camera = new THREE.PerspectiveCamera(fieldOfView, aspectRatio, nearPlane, farPlane);
+    camera.position.x = 0; camera.position.z = 200; camera.position.y = 100;
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(width, height);
+    renderer.shadowMap.enabled = true;
+    container = document.getElementById('world');
+    container.appendChild(renderer.domElement);
+    window.addEventListener('resize', handleWindowResize, false);
+}
+
+function handleWindowResize() {
+    var height = window.innerHeight;
+    var width = window.innerWidth;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+}
+
+function createLights() {
+    hemisphereLight = new THREE.HemisphereLight(0xaaaaaa,0x000000, .9)
+    ambientLight = new THREE.AmbientLight(0xdc8874, .5);
+    shadowLight = new THREE.DirectionalLight(0xffffff, .9);
+    shadowLight.position.set(150, 350, 350);
+    shadowLight.castShadow = true;
+    shadowLight.shadow.camera.left = -400; shadowLight.shadow.camera.right = 400;
+    shadowLight.shadow.camera.top = 400; shadowLight.shadow.camera.bottom = -400;
+    shadowLight.shadow.camera.near = 1; shadowLight.shadow.camera.far = 1000;
+    shadowLight.shadow.mapSize.width = 2048; shadowLight.shadow.mapSize.height = 2048;
+    scene.add(hemisphereLight); scene.add(shadowLight); scene.add(ambientLight);
+}
+
+function createPlane(){
+    airplane = new AirPlane();
+    airplane.mesh.scale.set(.25,.25,.25);
+    airplane.mesh.position.y = game.planeDefaultHeight;
+    scene.add(airplane.mesh);
+}
+function createSea(){
+    sea = new Sea();
+    sea.mesh.position.y = -game.seaRadius;
+    scene.add(sea.mesh);
+}
+function createSky(){
+    sky = new Sky();
+    sky.mesh.position.y = -game.seaRadius;
+    scene.add(sky.mesh);
+}
+
+// 6. 游戏逻辑
+function startGame() {
+    document.getElementById('start-screen').classList.add('hidden');
+    gameStatus = "playing";
+    resetGame();
+    AudioMgr.startMusic();
+}
+
+function loop(){
+    newTime = new Date().getTime();
+    deltaTime = newTime-oldTime;
+    oldTime = newTime;
+    if(deltaTime > 50) deltaTime = 50; // 防止切出页面后穿模
+
+    if (gameStatus=="playing"){
+        // 动态生成
+        if (Math.floor(game.distance)%game.distanceForCoinsSpawn == 0 && Math.floor(game.distance) > game.coinLastSpawn){
+            game.coinLastSpawn = Math.floor(game.distance);
+            memoriesHolder.spawn();
+        }
+        if (Math.floor(game.distance)%game.distanceForEnemiesSpawn == 0 && Math.floor(game.distance) > game.enemyLastSpawn){
+            game.enemyLastSpawn = Math.floor(game.distance);
+            enemiesHolder.spawn();
+        }
+
+        updatePlane();
+        updateDistance();
+        updateBackground();
+        checkLevelProgression();
+
+        // 胜利条件
+        if(game.distance >= game.targetDistance) {
+            gameStatus = "won";
+            AudioMgr.play('win');
+            triggerWinSequence();
+        }
+    } else if(gameStatus=="gameover"){
+        game.speed *= .99;
+        airplane.mesh.rotation.z += (-Math.PI/2 - airplane.mesh.rotation.z)*.0002*deltaTime;
+        airplane.mesh.rotation.x += 0.0003*deltaTime;
+        airplane.mesh.position.y -= 0.2*deltaTime;
+        sea.moveWaves();
+    } else if(gameStatus=="won") {
+        sea.moveWaves();
+        airplane.pilot.updateHairs();
+        airplane.propeller.rotation.x += 0.1;
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+}
+
+// 核心：检查关卡/叙事进度
+function checkLevelProgression() {
+    // 找到当前距离对应的关卡
+    let level = -1;
+    for(let i=0; i<LEVEL_CONFIG.length; i++){
+        if(game.distance >= LEVEL_CONFIG[i].threshold) level = i;
+    }
+    
+    if(level !== currentLevelIndex && level !== -1) {
+        currentLevelIndex = level;
+        updateEnvironment(LEVEL_CONFIG[level]);
+        showNarrative(LEVEL_CONFIG[level].text);
+    }
+}
+
+function updateEnvironment(config) {
+    // 改变背景色 CSS
+    document.body.style.background = `linear-gradient(${config.bgColor[0]}, ${config.bgColor[1]})`;
+    // 改变 Fog 颜色 ThreeJS (用GSAP做平滑过渡)
+    TweenMax.to(scene.fog.color, 2, {
+        r: new THREE.Color(config.fogColor).r,
+        g: new THREE.Color(config.fogColor).g,
+        b: new THREE.Color(config.fogColor).b
+    });
+}
+
+function showNarrative(htmlText) {
+    const el = document.getElementById("narrativeText");
+    el.classList.remove("show");
+    setTimeout(() => {
+        el.innerHTML = htmlText;
+        el.classList.add("show");
+    }, 1000);
+    // 5秒后淡出
+    setTimeout(() => {
+        el.classList.remove("show");
+    }, 7000);
+}
+
+function showPickupMessage(text) {
+    const el = document.createElement("div");
+    el.className = "pickup-msg";
+    el.innerHTML = text;
+    // 随机位置在屏幕中上方
+    el.style.left = (window.innerWidth/2 - 100 + Math.random()*200) + "px";
+    el.style.top = (window.innerHeight/2 - 100 + Math.random()*50) + "px";
+    document.body.appendChild(el);
+    setTimeout(() => { el.remove(); }, 1500);
+}
+
+function getCurrentLevelConfig() {
+    return LEVEL_CONFIG[currentLevelIndex] || LEVEL_CONFIG[0];
+}
+
+function updateDistance(){
+    game.distance += game.speed*deltaTime*game.ratioSpeedDistance;
+    document.getElementById("distValue").innerHTML = Math.floor(game.distance);
+    game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByTime*game.distance;
+}
+
+function updatePlane(){
+    game.speed = game.targetBaseSpeed;
+    var targetY = normalize(mousePos.y,-.75,.75,game.planeDefaultHeight-game.planeAmpHeight, game.planeDefaultHeight+game.planeAmpHeight);
+    var targetX = normalize(mousePos.x,-1,1,-game.planeAmpWidth*.7, -game.planeAmpWidth);
+    airplane.mesh.position.y += (targetY-airplane.mesh.position.y)*deltaTime*game.planeMoveSensivity;
+    airplane.mesh.position.x += (targetX-airplane.mesh.position.x)*deltaTime*game.planeMoveSensivity;
+    airplane.mesh.rotation.z = (targetY-airplane.mesh.position.y)*deltaTime*game.planeRotXSensivity;
+    airplane.mesh.rotation.x = (airplane.mesh.position.y-targetY)*deltaTime*game.planeRotZSensivity;
+    airplane.propeller.rotation.x += 0.3;
+    airplane.pilot.updateHairs();
+}
+
+function updateBackground(){
+    sea.mesh.rotation.z += game.speed*deltaTime;
+    if ( sea.mesh.rotation.z > 2*Math.PI)  sea.mesh.rotation.z -= 2*Math.PI;
+    sky.moveClouds();
+    sea.moveWaves();
+    memoriesHolder.rotate();
+    enemiesHolder.rotate();
+}
+
+function handleMouseMove(event) {
+    var tx = -1 + (event.clientX / window.innerWidth)*2;
+    var ty = 1 - (event.clientY / window.innerHeight)*2;
+    mousePos = {x:tx, y:ty};
+}
+function handleTouchMove(event) {
+    event.preventDefault();
+    var tx = -1 + (event.touches[0].pageX / window.innerWidth)*2;
+    var ty = 1 - (event.touches[0].pageY / window.innerHeight)*2;
+    mousePos = {x:tx, y:ty};
+}
+function handleMouseUp(event){
+    if (gameStatus == "gameover"){
+        gameStatus = "playing";
+        document.getElementById("replayMessage").style.display="none";
+        resetGame();
+        AudioMgr.startMusic();
+    }
+}
+function handleTouchEnd(event){ handleMouseUp(event); }
+
+function normalize(v,vmin,vmax,tmin, tmax){
+    var nv = Math.max(Math.min(v,vmax), vmin);
+    var dv = vmax-vmin; var pc = (nv-vmin)/dv;
+    var dt = tmax-tmin; var tv = tmin + (pc*dt);
+    return tv;
+}
+
+function resetGame(){
+    game.speed = 0;
+    game.distance = 0;
+    game.lifes = 3;
+    collectedIds = [];
+    currentLevelIndex = -1;
+    
+    updateLifesUI();
+    updateCollectionUI();
+    
+    airplane.mesh.position.set(0,game.planeDefaultHeight,0);
+    airplane.mesh.rotation.set(0,0,0);
+    
+    while(memoriesHolder.mesh.children.length > 0) memoriesHolder.mesh.remove(memoriesHolder.mesh.children[0]);
+    memoriesHolder.memoriesInPlay = [];
+    while(enemiesHolder.mesh.children.length > 0) enemiesHolder.mesh.remove(enemiesHolder.mesh.children[0]);
+    enemiesHolder.ennemiesInUse = [];
+    if(boyfriend) { airplane.mesh.remove(boyfriend.mesh); boyfriend=null; }
+    
+    oldTime = new Date().getTime();
+    newTime = new Date().getTime();
+    
+    // 重置UI
+    document.getElementById("narrativeText").classList.remove("show");
+    document.body.style.background = "linear-gradient(#e4e0ba, #f7d9aa)";
+    scene.fog.color.setHex(0xf7d9aa);
+}
+
+function updateLifesUI() {
+    for(var i=1; i<=3; i++) {
+        document.getElementById("life"+i).classList.toggle('lost', i > game.lifes);
+    }
+}
+
+function updateCollectionUI() {
+    document.getElementById("collectionText").innerText = collectedIds.length + "/10";
+}
+
+function triggerWinSequence() {
+    showNarrative(ENDING_TEXT);
+    
+    boyfriend = new Boyfriend();
+    boyfriend.mesh.scale.set(0.25,0.25,0.25);
+    airplane.mesh.add(boyfriend.mesh);
+    boyfriend.mesh.position.set(15,27,0);
+    boyfriend.mesh.rotation.y = -Math.PI/2;
+    
+    setTimeout(showAlbum, 3000); // 稍作延迟等待拥抱动画
+}
+
+function showAlbum() {
+    var grid = document.getElementById('albumGrid');
+    grid.innerHTML = "";
+    MEMORIES.forEach(m => {
+        var isCollected = collectedIds.includes(m.id);
+        var div = document.createElement('div');
+        div.className = 'memory-card' + (isCollected ? ' collected' : '');
+        div.innerHTML = `<div class="memory-icon">${m.icon}</div><div class="memory-name">${m.title}</div><div style="font-size:0.8rem; opacity:0.8">${isCollected ? m.desc : '???'}</div>`;
+        grid.appendChild(div);
+    });
+    
+    if (collectedIds.length === 10) {
+        document.getElementById('surprise-container').style.display = 'block';
+        document.getElementById('boxTip').innerText = "Click to open surprise ❤";
+    } else {
+        document.getElementById('surprise-container').style.display = 'block';
+        document.getElementById('surprise-box').style.filter = "grayscale(100%)";
+        document.getElementById('surprise-box').style.pointerEvents = "none";
+        document.getElementById('boxTip').innerText = "Collect 10/10 memories to open";
+    }
+    
+    document.getElementById('win-screen').classList.add('visible');
+}
+
+function openLetter() {
+    document.getElementById('letter-modal').style.display = "flex";
+}
+function closeLetter() {
+    document.getElementById('letter-modal').style.display = "none";
+}
+
+window.addEventListener('load', init, false);
+</script>
 </body>
 </html>
